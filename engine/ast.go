@@ -42,6 +42,14 @@ type StringLiteral struct {
 func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }
 func (sl *StringLiteral) expressionNode()      {}
 
+type BooleanLiteral struct {
+	Token Token
+	Value bool
+}
+
+func (b *BooleanLiteral) TokenLiteral() string { return b.Token.Literal }
+func (b *BooleanLiteral) expressionNode()      {}
+
 type FunctionLiteral struct {
 	Token      Token
 	Parameters []*Identifier

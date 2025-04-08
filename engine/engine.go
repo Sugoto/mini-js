@@ -1,26 +1,54 @@
 package engine
 
+type Environment struct {
+	store map[string]Value
+	outer *Environment
+}
+
+func NewEnvironment() *Environment {
+	return &Environment{
+		store: make(map[string]Value),
+		outer: nil,
+	}
+}
+
+func (e *Environment) Get(name string) (Value, bool) {
+	val, ok := e.store[name]
+	if !ok && e.outer != nil {
+		return e.outer.Get(name)
+	}
+	return val, ok
+}
+
+func (e *Environment) Set(name string, val Value) {
+	e.store[name] = val
+}
+
 type Interpreter struct {
-	globals map[string]Value
+	env *Environment
 }
 
 func NewInterpreter() *Interpreter {
 	return &Interpreter{
-		globals: make(map[string]Value),
+		env: NewEnvironment(),
 	}
 }
 
 func (i *Interpreter) SetGlobal(name string, value interface{}) error {
-	switch v := value.(type) {
+	var v Value
+	switch val := value.(type) {
 	case Value:
-		i.globals[name] = v
+		v = val
 	case float64:
-		i.globals[name] = Value{Type: TypeNumber, Data: v}
+		v = Value{Type: TypeNumber, Data: val}
 	case string:
-		i.globals[name] = Value{Type: TypeString, Data: v}
+		v = Value{Type: TypeString, Data: val}
+	case bool:
+		v = Value{Type: TypeBoolean, value: val}
 	default:
-		i.globals[name] = Undefined
+		v = Undefined
 	}
+	i.env.Set(name, v)
 	return nil
 }
 
@@ -46,7 +74,7 @@ func (i *Interpreter) evalStatement(stmt Statement) Value {
 	switch s := stmt.(type) {
 	case *LetStatement:
 		val := i.evalExpression(s.Value)
-		i.globals[s.Name.Value] = val
+		i.env.Set(s.Name.Value, val)
 		return val
 	case *ReturnStatement:
 		return i.evalExpression(s.ReturnValue)
@@ -61,11 +89,55 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 		return Value{Type: TypeNumber, Data: e.Value}
 	case *StringLiteral:
 		return Value{Type: TypeString, Data: e.Value}
+	case *BooleanLiteral:
+		return Value{Type: TypeBoolean, value: e.Value}
 	case *Identifier:
-		if val, ok := i.globals[e.Value]; ok {
+		if val, ok := i.env.Get(e.Value); ok {
 			return val
 		}
 		return Undefined
+	case *PrefixExpression:
+		right := i.evalExpression(e.Right)
+		switch e.Operator {
+		case "!":
+			return Value{Type: TypeBoolean, value: !right.ToBoolean()}
+		case "-":
+			if right.Type == TypeNumber {
+				return Value{Type: TypeNumber, Data: -right.Data.(float64)}
+			}
+		}
+		return Undefined
+	case *InfixExpression:
+		left := i.evalExpression(e.Left)
+		right := i.evalExpression(e.Right)
+
+		switch e.Operator {
+		case "+":
+			return left.Add(right)
+		case "-":
+			return left.Subtract(right)
+		case "*":
+			return left.Multiply(right)
+		case "/":
+			return left.Divide(right)
+		}
+		return Undefined
+	case *FunctionLiteral:
+		return Value{
+			Type: TypeFunction,
+			Data: &Function{
+				Parameters: e.Parameters,
+				Body:       e.Body,
+				Env:        i.env.store,
+			},
+		}
+	case *CallExpression:
+		fn := i.evalExpression(e.Function)
+		args := make([]Value, len(e.Arguments))
+		for idx, arg := range e.Arguments {
+			args[idx] = i.evalExpression(arg)
+		}
+		return fn.Call(args...)
 	default:
 		return Undefined
 	}

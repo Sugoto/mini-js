@@ -84,9 +84,89 @@ func (v Value) IsFunction() bool {
 	return v.Type == TypeFunction
 }
 
+type Function struct {
+	Parameters  []*Identifier
+	Body        *BlockStatement
+	Env         map[string]Value
+	interpreter *Interpreter // Add reference to interpreter
+}
+
 func (v Value) Call(args ...Value) Value {
 	if v.Type != TypeFunction {
 		return Undefined
+	}
+
+	fn := v.Data.(*Function)
+
+	newEnv := NewEnvironment()
+	newEnv.store = fn.Env
+
+	for i, param := range fn.Parameters {
+		if i < len(args) {
+			newEnv.Set(param.Value, args[i])
+		} else {
+			newEnv.Set(param.Value, Undefined)
+		}
+	}
+
+	tempInterpreter := &Interpreter{env: newEnv}
+
+	var result Value = Undefined
+	for _, stmt := range fn.Body.Statements {
+		result = tempInterpreter.evalStatement(stmt)
+		if ret, ok := stmt.(*ReturnStatement); ok {
+			return tempInterpreter.evalExpression(ret.ReturnValue)
+		}
+	}
+
+	return result
+}
+
+func (v Value) Add(other Value) Value {
+	if v.Type == TypeNumber && other.Type == TypeNumber {
+		return Value{
+			Type: TypeNumber,
+			Data: v.Data.(float64) + other.Data.(float64),
+		}
+	}
+	if v.Type == TypeString || other.Type == TypeString {
+		return Value{
+			Type: TypeString,
+			Data: v.ToString() + other.ToString(),
+		}
+	}
+	return Undefined
+}
+
+func (v Value) Subtract(other Value) Value {
+	if v.Type == TypeNumber && other.Type == TypeNumber {
+		return Value{
+			Type: TypeNumber,
+			Data: v.Data.(float64) - other.Data.(float64),
+		}
+	}
+	return Undefined
+}
+
+func (v Value) Multiply(other Value) Value {
+	if v.Type == TypeNumber && other.Type == TypeNumber {
+		return Value{
+			Type: TypeNumber,
+			Data: v.Data.(float64) * other.Data.(float64),
+		}
+	}
+	return Undefined
+}
+
+func (v Value) Divide(other Value) Value {
+	if v.Type == TypeNumber && other.Type == TypeNumber {
+		if other.Data.(float64) == 0 {
+			return Undefined
+		}
+		return Value{
+			Type: TypeNumber,
+			Data: v.Data.(float64) / other.Data.(float64),
+		}
 	}
 	return Undefined
 }

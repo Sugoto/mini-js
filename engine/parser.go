@@ -1,5 +1,7 @@
 package engine
 
+import "strconv"
+
 type Parser struct {
 	l         *Lexer
 	curToken  Token
@@ -105,7 +107,99 @@ func (p *Parser) peekTokenIs(t TokenType) bool {
 	return p.peekToken.Type == t
 }
 
+const (
+	_ int = iota
+	LOWEST
+	EQUALS      // ==
+	LESSGREATER // > or <
+	SUM         // +
+	PRODUCT     // *
+	PREFIX      // -X or !X
+	CALL        // myFunction(X)
+)
+
+var precedences = map[TokenType]int{
+	PLUS:     SUM,
+	MINUS:    SUM,
+	SLASH:    PRODUCT,
+	ASTERISK: PRODUCT,
+}
+
 func (p *Parser) parseExpression() Expression {
-	// For now, return nil as we'll implement expression parsing later
+	left := p.parsePrefixExpression()
+
+	for !p.peekTokenIs(SEMICOLON) && p.curToken.Type != EOF {
+		left = p.parseInfixExpression(left)
+	}
+
+	return left
+}
+
+func (p *Parser) parsePrefixExpression() Expression {
+	switch p.curToken.Type {
+	case NUMBER:
+		lit := &NumberLiteral{Token: p.curToken}
+		value, err := strconv.ParseFloat(p.curToken.Literal, 64)
+		if err != nil {
+			return nil
+		}
+		lit.Value = value
+		return lit
+	case TRUE:
+		return &BooleanLiteral{Token: p.curToken, Value: true}
+	case FALSE:
+		return &BooleanLiteral{Token: p.curToken, Value: false}
+	case IDENT:
+		return &Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	case MINUS, BANG:
+		expression := &PrefixExpression{
+			Token:    p.curToken,
+			Operator: p.curToken.Literal,
+		}
+		p.nextToken()
+		expression.Right = p.parsePrefixExpression()
+		return expression
+	}
 	return nil
+}
+
+func (p *Parser) parseInfixExpression(left Expression) Expression {
+	if !p.isOperator(p.peekToken.Type) {
+		return left
+	}
+
+	p.nextToken()
+	expression := &InfixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+
+	currentPrecedence := p.curPrecedence()
+	p.nextToken()
+
+	for !p.peekTokenIs(SEMICOLON) && currentPrecedence < p.peekPrecedence() {
+		p.nextToken()
+		expression.Right = p.parsePrefixExpression()
+	}
+
+	return expression
+}
+
+func (p *Parser) peekPrecedence() int {
+	if p, ok := precedences[p.peekToken.Type]; ok {
+		return p
+	}
+	return LOWEST
+}
+
+func (p *Parser) isOperator(t TokenType) bool {
+	return t == PLUS || t == MINUS || t == ASTERISK || t == SLASH
+}
+
+func (p *Parser) curPrecedence() int {
+	if p, ok := precedences[p.curToken.Type]; ok {
+		return p
+	}
+	return LOWEST
 }
