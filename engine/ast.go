@@ -114,6 +114,14 @@ type IfExpression struct {
 func (ie *IfExpression) TokenLiteral() string { return ie.Token.Literal }
 func (ie *IfExpression) expressionNode()      {}
 
+type ExpressionStatement struct {
+	Token      Token
+	Expression Expression
+}
+
+func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
+func (es *ExpressionStatement) statementNode()       {}
+
 func (p *Program) TokenLiteral() string {
 	if len(p.Statements) > 0 {
 		return p.Statements[0].TokenLiteral()

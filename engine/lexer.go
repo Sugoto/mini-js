@@ -3,16 +3,17 @@ package engine
 type TokenType string
 
 const (
-	ILLEGAL  TokenType = "ILLEGAL"
-	EOF      TokenType = "EOF"
-	IDENT    TokenType = "IDENT"
-	NUMBER   TokenType = "NUMBER"
-	ASSIGN   TokenType = "="
-	PLUS     TokenType = "+"
-	MINUS    TokenType = "-"
-	BANG     TokenType = "!"
-	ASTERISK TokenType = "*"
-	SLASH    TokenType = "/"
+	ILLEGAL   TokenType = "ILLEGAL"
+	EOF       TokenType = "EOF"
+	IDENT     TokenType = "IDENT"
+	NUMBER    TokenType = "NUMBER"
+	ASSIGN    TokenType = "="
+	PLUS      TokenType = "+"
+	MINUS     TokenType = "-"
+	BANG      TokenType = "!"
+	ASTERISK  TokenType = "*"
+	SLASH     TokenType = "/"
+	SEMICOLON TokenType = ";"
 
 	FUNCTION TokenType = "FUNCTION"
 	LET      TokenType = "LET"
@@ -87,7 +88,7 @@ func (l *Lexer) NextToken() Token {
 	case '/':
 		tok = Token{Type: SLASH, Literal: string(l.ch)}
 	case ';':
-		tok = Token{Type: ";", Literal: string(l.ch)}
+		tok = Token{Type: SEMICOLON, Literal: string(l.ch)}
 	case '(':
 		tok = Token{Type: "(", Literal: string(l.ch)}
 	case ')':

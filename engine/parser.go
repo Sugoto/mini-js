@@ -19,9 +19,8 @@ func (p *Parser) ParseProgram() *Program {
 	}
 
 	for p.curToken.Type != EOF {
-		if stmt := p.parseStatement(); stmt != nil {
-			program.Statements = append(program.Statements, stmt)
-		}
+		stmt := p.parseStatement()
+		program.Statements = append(program.Statements, stmt)
 		p.nextToken()
 	}
 
@@ -42,4 +41,71 @@ func (p *Parser) parseStatement() Statement {
 	default:
 		return p.parseExpressionStatement()
 	}
+}
+
+func (p *Parser) parseLetStatement() *LetStatement {
+	stmt := &LetStatement{Token: p.curToken}
+
+	if !p.expectPeek(IDENT) {
+		return nil
+	}
+
+	stmt.Name = &Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	if !p.expectPeek(ASSIGN) {
+		return nil
+	}
+
+	p.nextToken()
+
+	stmt.Value = p.parseExpression()
+
+	if p.peekTokenIs(SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseReturnStatement() *ReturnStatement {
+	stmt := &ReturnStatement{Token: p.curToken}
+
+	p.nextToken()
+
+	stmt.ReturnValue = p.parseExpression()
+
+	if p.peekTokenIs(SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseExpressionStatement() *ExpressionStatement {
+	stmt := &ExpressionStatement{Token: p.curToken}
+
+	stmt.Expression = p.parseExpression()
+
+	if p.peekTokenIs(SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
+func (p *Parser) expectPeek(t TokenType) bool {
+	if p.peekTokenIs(t) {
+		p.nextToken()
+		return true
+	}
+	return false
+}
+
+func (p *Parser) peekTokenIs(t TokenType) bool {
+	return p.peekToken.Type == t
+}
+
+func (p *Parser) parseExpression() Expression {
+	// For now, return nil as we'll implement expression parsing later
+	return nil
 }
