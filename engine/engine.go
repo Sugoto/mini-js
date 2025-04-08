@@ -1,17 +1,26 @@
 package engine
 
 type Interpreter struct {
-	globals map[string]interface{}
+	globals map[string]Value
 }
 
 func NewInterpreter() *Interpreter {
 	return &Interpreter{
-		globals: make(map[string]interface{}),
+		globals: make(map[string]Value),
 	}
 }
 
 func (i *Interpreter) SetGlobal(name string, value interface{}) error {
-	i.globals[name] = value
+	switch v := value.(type) {
+	case Value:
+		i.globals[name] = v
+	case float64:
+		i.globals[name] = Value{Type: TypeNumber, Data: v}
+	case string:
+		i.globals[name] = Value{Type: TypeString, Data: v}
+	default:
+		i.globals[name] = Undefined
+	}
 	return nil
 }
 
@@ -54,7 +63,7 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 		return Value{Type: TypeString, Data: e.Value}
 	case *Identifier:
 		if val, ok := i.globals[e.Value]; ok {
-			return val.(Value)
+			return val
 		}
 		return Undefined
 	default:
