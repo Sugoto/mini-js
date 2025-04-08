@@ -1,5 +1,7 @@
 package engine
 
+import "fmt"
+
 type Environment struct {
 	store map[string]Value
 	outer *Environment
@@ -44,7 +46,7 @@ func (i *Interpreter) SetGlobal(name string, value interface{}) error {
 	case string:
 		v = Value{Type: TypeString, Data: val}
 	case bool:
-		v = Value{Type: TypeBoolean, value: val}
+		v = Value{Type: TypeBoolean, Data: val, value: val}
 	default:
 		v = Undefined
 	}
@@ -61,10 +63,15 @@ func (i *Interpreter) Eval(code string) (Value, error) {
 }
 
 func (i *Interpreter) evalProgram(program *Program) Value {
-	var result Value
+	var result Value = Undefined
 
 	for _, statement := range program.Statements {
+		fmt.Println("Evaluating statement:", statement)
 		result = i.evalStatement(statement)
+		if _, ok := statement.(*ReturnStatement); ok {
+			fmt.Println("Returning from evalProgram", result)
+			return result
+		}
 	}
 
 	return result
@@ -75,9 +82,11 @@ func (i *Interpreter) evalStatement(stmt Statement) Value {
 	case *LetStatement:
 		val := i.evalExpression(s.Value)
 		i.env.Set(s.Name.Value, val)
-		return val
+		return Undefined
 	case *ReturnStatement:
 		return i.evalExpression(s.ReturnValue)
+	case *ExpressionStatement:
+		return i.evalExpression(s.Expression)
 	default:
 		return Undefined
 	}
@@ -90,7 +99,7 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 	case *StringLiteral:
 		return Value{Type: TypeString, Data: e.Value}
 	case *BooleanLiteral:
-		return Value{Type: TypeBoolean, value: e.Value}
+		return Value{Type: TypeBoolean, Data: e.Value, value: e.Value}
 	case *Identifier:
 		if val, ok := i.env.Get(e.Value); ok {
 			return val
@@ -100,7 +109,7 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 		right := i.evalExpression(e.Right)
 		switch e.Operator {
 		case "!":
-			return Value{Type: TypeBoolean, value: !right.ToBoolean()}
+			return Value{Type: TypeBoolean, Data: !right.ToBoolean(), value: !right.ToBoolean()}
 		case "-":
 			if right.Type == TypeNumber {
 				return Value{Type: TypeNumber, Data: -right.Data.(float64)}

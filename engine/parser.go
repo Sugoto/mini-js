@@ -128,8 +128,18 @@ var precedences = map[TokenType]int{
 func (p *Parser) parseExpression() Expression {
 	left := p.parsePrefixExpression()
 
-	for !p.peekTokenIs(SEMICOLON) && p.curToken.Type != EOF {
-		left = p.parseInfixExpression(left)
+	for !p.peekTokenIs(SEMICOLON) && p.peekToken.Type != EOF && p.isOperator(p.peekToken.Type) {
+		p.nextToken()
+		operator := p.curToken.Literal
+
+		p.nextToken()
+		right := p.parsePrefixExpression()
+
+		left = &InfixExpression{
+			Left:     left,
+			Operator: operator,
+			Right:    right,
+		}
 	}
 
 	return left

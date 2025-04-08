@@ -123,9 +123,10 @@ func (v Value) Call(args ...Value) Value {
 
 func (v Value) Add(other Value) Value {
 	if v.Type == TypeNumber && other.Type == TypeNumber {
+		result := v.Data.(float64) + other.Data.(float64)
 		return Value{
 			Type: TypeNumber,
-			Data: v.Data.(float64) + other.Data.(float64),
+			Data: result,
 		}
 	}
 	if v.Type == TypeString || other.Type == TypeString {
@@ -139,9 +140,10 @@ func (v Value) Add(other Value) Value {
 
 func (v Value) Subtract(other Value) Value {
 	if v.Type == TypeNumber && other.Type == TypeNumber {
+		result := v.Data.(float64) - other.Data.(float64)
 		return Value{
 			Type: TypeNumber,
-			Data: v.Data.(float64) - other.Data.(float64),
+			Data: result,
 		}
 	}
 	return Undefined
@@ -149,9 +151,10 @@ func (v Value) Subtract(other Value) Value {
 
 func (v Value) Multiply(other Value) Value {
 	if v.Type == TypeNumber && other.Type == TypeNumber {
+		result := v.Data.(float64) * other.Data.(float64)
 		return Value{
 			Type: TypeNumber,
-			Data: v.Data.(float64) * other.Data.(float64),
+			Data: result,
 		}
 	}
 	return Undefined
@@ -162,9 +165,10 @@ func (v Value) Divide(other Value) Value {
 		if other.Data.(float64) == 0 {
 			return Undefined
 		}
+		result := v.Data.(float64) / other.Data.(float64)
 		return Value{
 			Type: TypeNumber,
-			Data: v.Data.(float64) / other.Data.(float64),
+			Data: result,
 		}
 	}
 	return Undefined
