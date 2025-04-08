@@ -33,13 +33,23 @@ func ExtendEnvironment(outer *Environment) *Environment {
 }
 
 type Interpreter struct {
-	env *Environment
+	env       *Environment
+	debugMode bool
 }
 
 func NewInterpreter() *Interpreter {
 	return &Interpreter{
-		env: NewEnvironment(),
+		env:       NewEnvironment(),
+		debugMode: false,
 	}
+}
+
+func (i *Interpreter) EnableDebug() {
+	i.debugMode = true
+}
+
+func (i *Interpreter) DisableDebug() {
+	i.debugMode = false
 }
 
 func (i *Interpreter) SetGlobal(name string, value interface{}) error {
@@ -61,21 +71,45 @@ func (i *Interpreter) SetGlobal(name string, value interface{}) error {
 }
 
 func (i *Interpreter) Eval(code string) (Value, error) {
-	lexer := NewLexer(code)
-	parser := NewParser(lexer)
-	program := parser.ParseProgram()
+	if i.debugMode {
+		fmt.Println("🔍 Debug: Starting evaluation of code")
+	}
 
-	return i.evalProgram(program), nil
+	lexer := NewLexer(code)
+	if i.debugMode {
+		fmt.Println("🔍 Debug: Starting lexical analysis")
+	}
+
+	parser := NewParser(lexer)
+	if i.debugMode {
+		fmt.Println("🔍 Debug: Starting parsing")
+	}
+
+	program := parser.ParseProgram()
+	if i.debugMode {
+		fmt.Println("🔍 Debug: Parsing complete, beginning program evaluation")
+	}
+
+	result := i.evalProgram(program)
+	if i.debugMode {
+		fmt.Printf("🔍 Debug: Program evaluation complete, final result: %v\n", result.ToString())
+	}
+
+	return result, nil
 }
 
 func (i *Interpreter) evalProgram(program *Program) Value {
 	var result Value = Undefined
 
 	for _, statement := range program.Statements {
-		fmt.Println("Evaluating statement:", statement)
+		if i.debugMode {
+			fmt.Printf("🔍 Debug: Evaluating statement: %T\n", statement)
+		}
 		result = i.evalStatement(statement)
 		if result.Type == TypeReturn {
-			fmt.Println("Returning from evalProgram", result)
+			if i.debugMode {
+				fmt.Printf("🔍 Debug: Found return statement, value: %v\n", result.ToString())
+			}
 			if returnValue, ok := result.Data.(*ReturnValue); ok {
 				return returnValue.Value
 			}
@@ -87,20 +121,36 @@ func (i *Interpreter) evalProgram(program *Program) Value {
 }
 
 func (i *Interpreter) evalStatement(stmt Statement) Value {
+	if i.debugMode {
+		fmt.Printf("🔍 Debug: Processing statement of type: %T\n", stmt)
+	}
+
 	switch s := stmt.(type) {
 	case *LetStatement:
 		val := i.evalExpression(s.Value)
+		if i.debugMode {
+			fmt.Printf("🔍 Debug: Let statement - binding '%s' to value: %v\n", s.Name.Value, val.ToString())
+		}
 		i.env.Set(s.Name.Value, val)
 		return Undefined
 	case *ReturnStatement:
 		val := i.evalExpression(s.ReturnValue)
+		if i.debugMode {
+			fmt.Printf("🔍 Debug: Return statement - returning value: %v\n", val.ToString())
+		}
 		return Value{
 			Type: TypeReturn,
 			Data: &ReturnValue{Value: val},
 		}
 	case *ExpressionStatement:
+		if i.debugMode {
+			fmt.Println("🔍 Debug: Evaluating expression statement")
+		}
 		return i.evalExpression(s.Expression)
 	case *BlockStatement:
+		if i.debugMode {
+			fmt.Println("🔍 Debug: Evaluating block statement")
+		}
 		return i.evalBlockStatement(s)
 	default:
 		return Undefined
@@ -122,6 +172,10 @@ func (i *Interpreter) evalBlockStatement(block *BlockStatement) Value {
 }
 
 func (i *Interpreter) evalExpression(exp Expression) Value {
+	if i.debugMode {
+		fmt.Printf("🔍 Debug: Evaluating expression of type: %T\n", exp)
+	}
+
 	switch e := exp.(type) {
 	case *NumberLiteral:
 		return Value{Type: TypeNumber, Data: e.Value}

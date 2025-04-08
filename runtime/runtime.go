@@ -57,6 +57,14 @@ func (r *Runtime) injectGlobals() error {
 	return nil
 }
 
+func (r *Runtime) EnableDebug() {
+	r.interpreter.EnableDebug()
+}
+
+func (r *Runtime) DisableDebug() {
+	r.interpreter.DisableDebug()
+}
+
 func (r *Runtime) Execute(code string) (engine.Value, error) {
 	if !r.isRunning {
 		return engine.Value{}, errors.New("runtime is stopped")
