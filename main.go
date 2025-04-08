@@ -12,31 +12,31 @@ func main() {
 	// Test basic arithmetic
 	result, err := rt.Execute(`
 		let x = 5;
-		let y = 5;
+		let y = 3;
 		x + y;
 	`)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("5 + 5 =", result.ToString())
+	fmt.Println("5 + 3 =", result.ToString())
 
 	// Test function declaration and call
-	// result, err = rt.Execute(`
-	// 	let add = function(a, b) {
-	// 		return a + b;
-	// 	};
-	// 	add(10, 20);
-	// `)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fmt.Println("add(10, 20) =", result.ToString())
+	result, err = rt.Execute(`
+		let add = function(a, b) {
+			return a + b;
+		};
+		add(10, 20);
+	`)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("add(10, 20) =", result.ToString())
 
-	// // Test console.log
-	// _, err = rt.Execute(`
-	// 	console.log("Hello from JavaScript!");
-	// `)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	// Test console.log
+	_, err = rt.Execute(`
+		console.log("Hello from JavaScript!");
+	`)
+	if err != nil {
+		panic(err)
+	}
 }

@@ -11,12 +11,15 @@ const (
 	TypeString
 	TypeBoolean
 	TypeFunction
+	TypeObject
+	TypeReturn
 )
 
 type Value struct {
-	Type  ValueType
-	Data  interface{}
-	value bool
+	Type       ValueType
+	Data       interface{}
+	value      bool
+	properties map[string]Value
 }
 
 var Undefined = Value{Type: TypeUndefined}
@@ -32,7 +35,19 @@ func (v Value) ToString() string {
 	case TypeString:
 		return v.Data.(string)
 	case TypeBoolean:
+		if v.Data != nil {
+			return fmt.Sprintf("%v", v.Data.(bool))
+		}
 		return fmt.Sprintf("%v", v.value)
+	case TypeFunction:
+		return "[Function]"
+	case TypeObject:
+		return "[object Object]"
+	case TypeReturn:
+		if ret, ok := v.Data.(*ReturnValue); ok {
+			return ret.Value.ToString()
+		}
+		return "undefined"
 	default:
 		return "[object Object]"
 	}
@@ -42,6 +57,17 @@ func (v Value) ToNumber() float64 {
 	switch v.Type {
 	case TypeNumber:
 		return v.Data.(float64)
+	case TypeString:
+		return 0
+	case TypeBoolean:
+		if v.Data != nil {
+			if v.Data.(bool) {
+				return 1
+			}
+		} else if v.value {
+			return 1
+		}
+		return 0
 	default:
 		return 0
 	}
@@ -50,6 +76,9 @@ func (v Value) ToNumber() float64 {
 func (v Value) ToBoolean() bool {
 	switch v.Type {
 	case TypeBoolean:
+		if v.Data != nil {
+			return v.Data.(bool)
+		}
 		return v.value
 	case TypeNumber:
 		return v.Data.(float64) != 0
@@ -72,6 +101,9 @@ func (v Value) Equals(other Value) bool {
 	case TypeString:
 		return v.Data.(string) == other.Data.(string)
 	case TypeBoolean:
+		if v.Data != nil && other.Data != nil {
+			return v.Data.(bool) == other.Data.(bool)
+		}
 		return v.value == other.value
 	case TypeNull, TypeUndefined:
 		return true
@@ -84,10 +116,50 @@ func (v Value) IsFunction() bool {
 	return v.Type == TypeFunction
 }
 
+func (v Value) GetProperty(name string) Value {
+	if v.Type == TypeObject && v.properties != nil {
+		if prop, ok := v.properties[name]; ok {
+			return prop
+		}
+	}
+
+	if v.Type == TypeObject && v.Data != nil {
+		if v.Data.(string) == "console" && name == "log" {
+			return Value{
+				Type: TypeFunction,
+				Data: &ConsoleLogFunction{},
+			}
+		}
+	}
+
+	return Undefined
+}
+
+func (v Value) SetProperty(name string, value Value) {
+	if v.Type != TypeObject {
+		return
+	}
+
+	if v.properties == nil {
+		v.properties = make(map[string]Value)
+	}
+
+	v.properties[name] = value
+}
+
 type Function struct {
 	Parameters []*Identifier
 	Body       *BlockStatement
-	Env        map[string]Value
+	Env        *Environment
+}
+
+type ConsoleLogFunction struct{}
+
+func (clf *ConsoleLogFunction) Call(args ...Value) Value {
+	for _, arg := range args {
+		fmt.Println(arg.ToString())
+	}
+	return Undefined
 }
 
 func (v Value) Call(args ...Value) Value {
@@ -95,10 +167,18 @@ func (v Value) Call(args ...Value) Value {
 		return Undefined
 	}
 
-	fn := v.Data.(*Function)
+	// Handle built-in functions like console.log
+	if consoleLog, ok := v.Data.(*ConsoleLogFunction); ok {
+		return consoleLog.Call(args...)
+	}
+
+	fn, ok := v.Data.(*Function)
+	if !ok {
+		return Undefined
+	}
 
 	newEnv := NewEnvironment()
-	newEnv.store = fn.Env
+	newEnv.store = fn.Env.store
 
 	for i, param := range fn.Parameters {
 		if i < len(args) {

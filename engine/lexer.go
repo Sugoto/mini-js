@@ -7,6 +7,7 @@ const (
 	EOF       TokenType = "EOF"
 	IDENT     TokenType = "IDENT"
 	NUMBER    TokenType = "NUMBER"
+	STRING    TokenType = "STRING"
 	ASSIGN    TokenType = "="
 	PLUS      TokenType = "+"
 	MINUS     TokenType = "-"
@@ -14,6 +15,8 @@ const (
 	ASTERISK  TokenType = "*"
 	SLASH     TokenType = "/"
 	SEMICOLON TokenType = ";"
+	DOT       TokenType = "."
+	COMMA     TokenType = ","
 
 	FUNCTION TokenType = "FUNCTION"
 	LET      TokenType = "LET"
@@ -30,13 +33,14 @@ type Token struct {
 }
 
 var keywords = map[string]TokenType{
-	"fn":     FUNCTION,
-	"let":    LET,
-	"true":   TRUE,
-	"false":  FALSE,
-	"if":     IF,
-	"else":   ELSE,
-	"return": RETURN,
+	"fn":       FUNCTION,
+	"let":      LET,
+	"true":     TRUE,
+	"false":    FALSE,
+	"if":       IF,
+	"else":     ELSE,
+	"return":   RETURN,
+	"function": FUNCTION,
 }
 
 func lookupIdent(ident string) TokenType {
@@ -69,6 +73,13 @@ func (l *Lexer) readChar() {
 	l.readPosition += 1
 }
 
+func (l *Lexer) peekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	}
+	return l.input[l.readPosition]
+}
+
 func (l *Lexer) NextToken() Token {
 	var tok Token
 
@@ -89,6 +100,10 @@ func (l *Lexer) NextToken() Token {
 		tok = Token{Type: SLASH, Literal: string(l.ch)}
 	case ';':
 		tok = Token{Type: SEMICOLON, Literal: string(l.ch)}
+	case '.':
+		tok = Token{Type: DOT, Literal: string(l.ch)}
+	case ',':
+		tok = Token{Type: COMMA, Literal: string(l.ch)}
 	case '(':
 		tok = Token{Type: "(", Literal: string(l.ch)}
 	case ')':
@@ -97,6 +112,9 @@ func (l *Lexer) NextToken() Token {
 		tok = Token{Type: "{", Literal: string(l.ch)}
 	case '}':
 		tok = Token{Type: "}", Literal: string(l.ch)}
+	case '"':
+		tok.Type = STRING
+		tok.Literal = l.readString()
 	case 0:
 		tok = Token{Type: EOF, Literal: ""}
 	default:
@@ -134,6 +152,15 @@ func (l *Lexer) readIdentifier() string {
 func (l *Lexer) readNumber() string {
 	position := l.position
 	for isDigit(l.ch) {
+		l.readChar()
+	}
+	return l.input[position:l.position]
+}
+
+func (l *Lexer) readString() string {
+	l.readChar()
+	position := l.position
+	for l.ch != '"' && l.ch != 0 {
 		l.readChar()
 	}
 	return l.input[position:l.position]

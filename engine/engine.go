@@ -26,6 +26,12 @@ func (e *Environment) Set(name string, val Value) {
 	e.store[name] = val
 }
 
+func ExtendEnvironment(outer *Environment) *Environment {
+	env := NewEnvironment()
+	env.outer = outer
+	return env
+}
+
 type Interpreter struct {
 	env *Environment
 }
@@ -46,7 +52,7 @@ func (i *Interpreter) SetGlobal(name string, value interface{}) error {
 	case string:
 		v = Value{Type: TypeString, Data: val}
 	case bool:
-		v = Value{Type: TypeBoolean, Data: val, value: val}
+		v = Value{Type: TypeBoolean, Data: val}
 	default:
 		v = Undefined
 	}
@@ -68,8 +74,11 @@ func (i *Interpreter) evalProgram(program *Program) Value {
 	for _, statement := range program.Statements {
 		fmt.Println("Evaluating statement:", statement)
 		result = i.evalStatement(statement)
-		if _, ok := statement.(*ReturnStatement); ok {
+		if result.Type == TypeReturn {
 			fmt.Println("Returning from evalProgram", result)
+			if returnValue, ok := result.Data.(*ReturnValue); ok {
+				return returnValue.Value
+			}
 			return result
 		}
 	}
@@ -84,12 +93,32 @@ func (i *Interpreter) evalStatement(stmt Statement) Value {
 		i.env.Set(s.Name.Value, val)
 		return Undefined
 	case *ReturnStatement:
-		return i.evalExpression(s.ReturnValue)
+		val := i.evalExpression(s.ReturnValue)
+		return Value{
+			Type: TypeReturn,
+			Data: &ReturnValue{Value: val},
+		}
 	case *ExpressionStatement:
 		return i.evalExpression(s.Expression)
+	case *BlockStatement:
+		return i.evalBlockStatement(s)
 	default:
 		return Undefined
 	}
+}
+
+func (i *Interpreter) evalBlockStatement(block *BlockStatement) Value {
+	var result Value = Undefined
+
+	for _, statement := range block.Statements {
+		result = i.evalStatement(statement)
+
+		if result.Type == TypeReturn {
+			return result
+		}
+	}
+
+	return result
 }
 
 func (i *Interpreter) evalExpression(exp Expression) Value {
@@ -99,17 +128,29 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 	case *StringLiteral:
 		return Value{Type: TypeString, Data: e.Value}
 	case *BooleanLiteral:
-		return Value{Type: TypeBoolean, Data: e.Value, value: e.Value}
+		return Value{Type: TypeBoolean, Data: e.Value}
 	case *Identifier:
 		if val, ok := i.env.Get(e.Value); ok {
 			return val
+		}
+		if e.Value == "console" {
+			return Value{
+				Type: TypeObject,
+				Data: "console",
+				properties: map[string]Value{
+					"log": Value{
+						Type: TypeFunction,
+						Data: &ConsoleLogFunction{},
+					},
+				},
+			}
 		}
 		return Undefined
 	case *PrefixExpression:
 		right := i.evalExpression(e.Right)
 		switch e.Operator {
 		case "!":
-			return Value{Type: TypeBoolean, Data: !right.ToBoolean(), value: !right.ToBoolean()}
+			return Value{Type: TypeBoolean, Data: !right.ToBoolean()}
 		case "-":
 			if right.Type == TypeNumber {
 				return Value{Type: TypeNumber, Data: -right.Data.(float64)}
@@ -117,6 +158,24 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 		}
 		return Undefined
 	case *InfixExpression:
+		if e.Operator == "." {
+			left := i.evalExpression(e.Left)
+			if right, ok := e.Right.(*Identifier); ok {
+				if left.properties != nil {
+					if prop, ok := left.properties[right.Value]; ok {
+						return prop
+					}
+				}
+				if left.Type == TypeObject && left.Data == "console" && right.Value == "log" {
+					return Value{
+						Type: TypeFunction,
+						Data: &ConsoleLogFunction{},
+					}
+				}
+			}
+			return Undefined
+		}
+
 		left := i.evalExpression(e.Left)
 		right := i.evalExpression(e.Right)
 
@@ -132,12 +191,14 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 		}
 		return Undefined
 	case *FunctionLiteral:
+		params := e.Parameters
+		body := e.Body
 		return Value{
 			Type: TypeFunction,
 			Data: &Function{
-				Parameters: e.Parameters,
-				Body:       e.Body,
-				Env:        i.env.store,
+				Parameters: params,
+				Body:       body,
+				Env:        i.env,
 			},
 		}
 	case *CallExpression:
@@ -146,8 +207,52 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 		for idx, arg := range e.Arguments {
 			args[idx] = i.evalExpression(arg)
 		}
-		return fn.Call(args...)
+		return i.applyFunction(fn, args)
 	default:
 		return Undefined
 	}
+}
+
+func (i *Interpreter) applyFunction(fn Value, args []Value) Value {
+	if fn.Type != TypeFunction {
+		return Undefined
+	}
+
+	if _, ok := fn.Data.(*ConsoleLogFunction); ok {
+		for _, arg := range args {
+			fmt.Println(arg.ToString())
+		}
+		return Undefined
+	}
+
+	function, ok := fn.Data.(*Function)
+	if !ok {
+		return Undefined
+	}
+
+	extendedEnv := ExtendEnvironment(function.Env)
+	for idx, param := range function.Parameters {
+		if idx < len(args) {
+			extendedEnv.Set(param.Value, args[idx])
+		}
+	}
+
+	savedEnv := i.env
+	i.env = extendedEnv
+
+	evaluated := i.evalStatement(function.Body)
+
+	i.env = savedEnv
+
+	if evaluated.Type == TypeReturn {
+		if returnValue, ok := evaluated.Data.(*ReturnValue); ok {
+			return returnValue.Value
+		}
+	}
+
+	return evaluated
+}
+
+type ReturnValue struct {
+	Value Value
 }
