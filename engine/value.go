@@ -167,7 +167,6 @@ func (v Value) Call(args ...Value) Value {
 		return Undefined
 	}
 
-	// Handle built-in functions like console.log
 	if consoleLog, ok := v.Data.(*ConsoleLogFunction); ok {
 		return consoleLog.Call(args...)
 	}

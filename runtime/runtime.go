@@ -34,7 +34,7 @@ func (r *Runtime) injectGlobals() error {
 		Type: engine.TypeObject,
 		Data: "console",
 		Properties: map[string]engine.Value{
-			"log": engine.Value{
+			"log": {
 				Type: engine.TypeFunction,
 				Data: func(args ...engine.Value) engine.Value {
 					for _, arg := range args {
