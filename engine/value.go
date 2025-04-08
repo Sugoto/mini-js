@@ -85,10 +85,9 @@ func (v Value) IsFunction() bool {
 }
 
 type Function struct {
-	Parameters  []*Identifier
-	Body        *BlockStatement
-	Env         map[string]Value
-	interpreter *Interpreter // Add reference to interpreter
+	Parameters []*Identifier
+	Body       *BlockStatement
+	Env        map[string]Value
 }
 
 func (v Value) Call(args ...Value) Value {
