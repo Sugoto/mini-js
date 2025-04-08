@@ -25,6 +25,13 @@ const (
 	IF       TokenType = "IF"
 	ELSE     TokenType = "ELSE"
 	RETURN   TokenType = "RETURN"
+
+	GT     TokenType = ">"
+	LT     TokenType = "<"
+	GTE    TokenType = ">="
+	LTE    TokenType = "<="
+	EQ     TokenType = "=="
+	NOT_EQ TokenType = "!="
 )
 
 type Token struct {
@@ -87,13 +94,25 @@ func (l *Lexer) NextToken() Token {
 
 	switch l.ch {
 	case '=':
-		tok = Token{Type: ASSIGN, Literal: string(l.ch)}
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = Token{Type: EQ, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = Token{Type: ASSIGN, Literal: string(l.ch)}
+		}
 	case '+':
 		tok = Token{Type: PLUS, Literal: string(l.ch)}
 	case '-':
 		tok = Token{Type: MINUS, Literal: string(l.ch)}
 	case '!':
-		tok = Token{Type: BANG, Literal: string(l.ch)}
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = Token{Type: NOT_EQ, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = Token{Type: BANG, Literal: string(l.ch)}
+		}
 	case '*':
 		tok = Token{Type: ASTERISK, Literal: string(l.ch)}
 	case '/':
@@ -104,6 +123,22 @@ func (l *Lexer) NextToken() Token {
 		tok = Token{Type: DOT, Literal: string(l.ch)}
 	case ',':
 		tok = Token{Type: COMMA, Literal: string(l.ch)}
+	case '>':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = Token{Type: GTE, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = Token{Type: GT, Literal: string(l.ch)}
+		}
+	case '<':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = Token{Type: LTE, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = Token{Type: LT, Literal: string(l.ch)}
+		}
 	case '(':
 		tok = Token{Type: "(", Literal: string(l.ch)}
 	case ')':

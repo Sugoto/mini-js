@@ -192,7 +192,7 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 				Type: TypeObject,
 				Data: "console",
 				Properties: map[string]Value{
-					"log": Value{
+					"log": {
 						Type: TypeFunction,
 						Data: func(args ...Value) Value {
 							for _, arg := range args {
@@ -215,6 +215,14 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 			if right.Type == TypeNumber {
 				return Value{Type: TypeNumber, Data: -right.Data.(float64)}
 			}
+		}
+		return Undefined
+	case *IfExpression:
+		condition := i.evalExpression(e.Condition)
+		if condition.ToBoolean() {
+			return i.evalBlockStatement(e.Consequence)
+		} else if e.Alternative != nil {
+			return i.evalBlockStatement(e.Alternative)
 		}
 		return Undefined
 	case *InfixExpression:
@@ -254,6 +262,30 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 			return left.Multiply(right)
 		case "/":
 			return left.Divide(right)
+		case ">":
+			if left.Type == TypeNumber && right.Type == TypeNumber {
+				return Value{Type: TypeBoolean, Data: left.Data.(float64) > right.Data.(float64)}
+			}
+			return Value{Type: TypeBoolean, Data: false}
+		case "<":
+			if left.Type == TypeNumber && right.Type == TypeNumber {
+				return Value{Type: TypeBoolean, Data: left.Data.(float64) < right.Data.(float64)}
+			}
+			return Value{Type: TypeBoolean, Data: false}
+		case ">=":
+			if left.Type == TypeNumber && right.Type == TypeNumber {
+				return Value{Type: TypeBoolean, Data: left.Data.(float64) >= right.Data.(float64)}
+			}
+			return Value{Type: TypeBoolean, Data: false}
+		case "<=":
+			if left.Type == TypeNumber && right.Type == TypeNumber {
+				return Value{Type: TypeBoolean, Data: left.Data.(float64) <= right.Data.(float64)}
+			}
+			return Value{Type: TypeBoolean, Data: false}
+		case "==":
+			return Value{Type: TypeBoolean, Data: left.Equals(right)}
+		case "!=":
+			return Value{Type: TypeBoolean, Data: !left.Equals(right)}
 		}
 		return Undefined
 	case *FunctionLiteral:

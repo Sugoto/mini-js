@@ -126,6 +126,12 @@ const (
 )
 
 var precedences = map[TokenType]int{
+	EQ:       EQUALS,
+	NOT_EQ:   EQUALS,
+	LT:       LESSGREATER,
+	GT:       LESSGREATER,
+	LTE:      LESSGREATER,
+	GTE:      LESSGREATER,
 	PLUS:     SUM,
 	MINUS:    SUM,
 	SLASH:    PRODUCT,
@@ -166,12 +172,19 @@ func (p *Parser) init() {
 	p.registerPrefix(TRUE, p.parseBooleanLiteral)
 	p.registerPrefix(FALSE, p.parseBooleanLiteral)
 	p.registerPrefix(FUNCTION, p.parseFunctionLiteral)
+	p.registerPrefix(IF, p.parseIfExpression)
 
 	// Register infix parsers
 	p.registerInfix(PLUS, p.parseInfixExpression)
 	p.registerInfix(MINUS, p.parseInfixExpression)
 	p.registerInfix(SLASH, p.parseInfixExpression)
 	p.registerInfix(ASTERISK, p.parseInfixExpression)
+	p.registerInfix(GT, p.parseInfixExpression)
+	p.registerInfix(LT, p.parseInfixExpression)
+	p.registerInfix(GTE, p.parseInfixExpression)
+	p.registerInfix(LTE, p.parseInfixExpression)
+	p.registerInfix(EQ, p.parseInfixExpression)
+	p.registerInfix(NOT_EQ, p.parseInfixExpression)
 	p.registerInfix("(", p.parseCallExpression)
 	p.registerInfix(DOT, p.parseDotExpression)
 }
@@ -309,6 +322,39 @@ func (p *Parser) parseCallExpression(function Expression) Expression {
 	exp := &CallExpression{Token: p.curToken, Function: function}
 	exp.Arguments = p.parseExpressionList(")")
 	return exp
+}
+
+func (p *Parser) parseIfExpression() Expression {
+	expression := &IfExpression{Token: p.curToken}
+
+	if !p.expectPeek("(") {
+		return nil
+	}
+
+	p.nextToken()
+	expression.Condition = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(")") {
+		return nil
+	}
+
+	if !p.expectPeek("{") {
+		return nil
+	}
+
+	expression.Consequence = p.parseBlockStatement()
+
+	if p.peekTokenIs(ELSE) {
+		p.nextToken()
+
+		if !p.expectPeek("{") {
+			return nil
+		}
+
+		expression.Alternative = p.parseBlockStatement()
+	}
+
+	return expression
 }
 
 func (p *Parser) parseExpressionList(end TokenType) []Expression {
