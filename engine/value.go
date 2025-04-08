@@ -19,7 +19,7 @@ type Value struct {
 	Type       ValueType
 	Data       interface{}
 	value      bool
-	properties map[string]Value
+	Properties map[string]Value
 }
 
 var Undefined = Value{Type: TypeUndefined}
@@ -117,8 +117,8 @@ func (v Value) IsFunction() bool {
 }
 
 func (v Value) GetProperty(name string) Value {
-	if v.Type == TypeObject && v.properties != nil {
-		if prop, ok := v.properties[name]; ok {
+	if v.Type == TypeObject && v.Properties != nil {
+		if prop, ok := v.Properties[name]; ok {
 			return prop
 		}
 	}
@@ -140,11 +140,11 @@ func (v Value) SetProperty(name string, value Value) {
 		return
 	}
 
-	if v.properties == nil {
-		v.properties = make(map[string]Value)
+	if v.Properties == nil {
+		v.Properties = make(map[string]Value)
 	}
 
-	v.properties[name] = value
+	v.Properties[name] = value
 }
 
 type Function struct {

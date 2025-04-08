@@ -137,10 +137,16 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 			return Value{
 				Type: TypeObject,
 				Data: "console",
-				properties: map[string]Value{
+				Properties: map[string]Value{
 					"log": Value{
 						Type: TypeFunction,
-						Data: &ConsoleLogFunction{},
+						Data: func(args ...Value) Value {
+							for _, arg := range args {
+								fmt.Print(arg.ToString(), " ")
+							}
+							fmt.Println()
+							return Undefined
+						},
 					},
 				},
 			}
@@ -161,15 +167,21 @@ func (i *Interpreter) evalExpression(exp Expression) Value {
 		if e.Operator == "." {
 			left := i.evalExpression(e.Left)
 			if right, ok := e.Right.(*Identifier); ok {
-				if left.properties != nil {
-					if prop, ok := left.properties[right.Value]; ok {
+				if left.Properties != nil {
+					if prop, ok := left.Properties[right.Value]; ok {
 						return prop
 					}
 				}
 				if left.Type == TypeObject && left.Data == "console" && right.Value == "log" {
 					return Value{
 						Type: TypeFunction,
-						Data: &ConsoleLogFunction{},
+						Data: func(args ...Value) Value {
+							for _, arg := range args {
+								fmt.Print(arg.ToString(), " ")
+							}
+							fmt.Println()
+							return Undefined
+						},
 					}
 				}
 			}
@@ -218,39 +230,29 @@ func (i *Interpreter) applyFunction(fn Value, args []Value) Value {
 		return Undefined
 	}
 
-	if _, ok := fn.Data.(*ConsoleLogFunction); ok {
-		for _, arg := range args {
-			fmt.Println(arg.ToString())
+	switch f := fn.Data.(type) {
+	case func(...Value) Value:
+		return f(args...)
+	case *Function:
+		extendedEnv := ExtendEnvironment(f.Env)
+		for idx, param := range f.Parameters {
+			if idx < len(args) {
+				extendedEnv.Set(param.Value, args[idx])
+			}
 		}
+		savedEnv := i.env
+		i.env = extendedEnv
+		evaluated := i.evalStatement(f.Body)
+		i.env = savedEnv
+		if evaluated.Type == TypeReturn {
+			if returnValue, ok := evaluated.Data.(*ReturnValue); ok {
+				return returnValue.Value
+			}
+		}
+		return evaluated
+	default:
 		return Undefined
 	}
-
-	function, ok := fn.Data.(*Function)
-	if !ok {
-		return Undefined
-	}
-
-	extendedEnv := ExtendEnvironment(function.Env)
-	for idx, param := range function.Parameters {
-		if idx < len(args) {
-			extendedEnv.Set(param.Value, args[idx])
-		}
-	}
-
-	savedEnv := i.env
-	i.env = extendedEnv
-
-	evaluated := i.evalStatement(function.Body)
-
-	i.env = savedEnv
-
-	if evaluated.Type == TypeReturn {
-		if returnValue, ok := evaluated.Data.(*ReturnValue); ok {
-			return returnValue.Value
-		}
-	}
-
-	return evaluated
 }
 
 type ReturnValue struct {

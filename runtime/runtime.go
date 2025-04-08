@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"errors"
+	"fmt"
 	"mini-js/engine"
 )
 
@@ -29,16 +30,30 @@ func (r *Runtime) injectGlobals() error {
 		return errors.New("interpreter not initialized")
 	}
 
-	if err := r.interpreter.SetGlobal("console", map[string]interface{}{
-		"log": ConsoleLog,
-	}); err != nil {
+	consoleObj := engine.Value{
+		Type: engine.TypeObject,
+		Data: "console",
+		Properties: map[string]engine.Value{
+			"log": engine.Value{
+				Type: engine.TypeFunction,
+				Data: func(args ...engine.Value) engine.Value {
+					for _, arg := range args {
+						fmt.Print(arg.ToString(), " ")
+					}
+					fmt.Println()
+					return engine.Undefined
+				},
+			},
+		},
+	}
+
+	if err := r.interpreter.SetGlobal("console", consoleObj); err != nil {
 		return err
 	}
 
 	if err := r.interpreter.SetGlobal("setTimeout", r.setTimeout); err != nil {
 		return err
 	}
-
 	return nil
 }
 
