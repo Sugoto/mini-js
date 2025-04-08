@@ -47,6 +47,39 @@ func (v Value) ToNumber() float64 {
 	}
 }
 
+func (v Value) ToBoolean() bool {
+	switch v.Type {
+	case TypeBoolean:
+		return v.value
+	case TypeNumber:
+		return v.Data.(float64) != 0
+	case TypeString:
+		return v.Data.(string) != ""
+	case TypeNull, TypeUndefined:
+		return false
+	default:
+		return true
+	}
+}
+
+func (v Value) Equals(other Value) bool {
+	if v.Type != other.Type {
+		return false
+	}
+	switch v.Type {
+	case TypeNumber:
+		return v.Data.(float64) == other.Data.(float64)
+	case TypeString:
+		return v.Data.(string) == other.Data.(string)
+	case TypeBoolean:
+		return v.value == other.value
+	case TypeNull, TypeUndefined:
+		return true
+	default:
+		return false
+	}
+}
+
 func (v Value) IsFunction() bool {
 	return v.Type == TypeFunction
 }
